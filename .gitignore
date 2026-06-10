@@ -46,3 +46,5 @@ dist/
 # Audio analysis temp files
 tmp/
 uploads/
+
+.vercel

@@ -11,12 +11,6 @@ import { getLevelById } from '@/lib/constants/levels'
 
 export const metadata: Metadata = { title: 'Dashboard' }
 
-const MOCK_RECORDINGS = [
-  { id: 'demo-1', instrument: 'Alto Saxophone', title: 'All-State Audition Excerpt', date: '2026-06-06', duration: '4:32', score: 74, level: 'Region', status: 'analyzed' as const },
-  { id: 'demo-2', instrument: 'Alto Saxophone', title: 'Concerto in E♭ Major, Mvt. I', date: '2026-06-04', duration: '6:18', score: 71, level: 'Region', status: 'analyzed' as const },
-  { id: 'demo-3', instrument: 'Alto Saxophone', title: 'Scale Packet — E Major', date: '2026-06-02', duration: '2:15', score: 82, level: 'Advanced', status: 'analyzed' as const },
-]
-
 function formatDuration(s: number | null) {
   if (!s) return '—'
   return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`
@@ -27,14 +21,10 @@ export default async function DashboardPage() {
   let currentLevelLabel = '—'
   let targetLevelLabel = '—'
   let isNewUser = true
-  let recordings = MOCK_RECORDINGS
-  let latestScores: number[] = [68, 70, 69, 72, 71, 74, 74]
-  let todayDrills: Array<{ label: string; priority: string; done: boolean }> = [
-    { label: 'Repeated-note articulation at ♩=84', priority: 'high', done: false },
-    { label: 'Long-tones above high E — 10 min daily', priority: 'high', done: false },
-    { label: 'Chromatic scale with alternate fingerings', priority: 'medium', done: true },
-  ]
-  let practiceDate = 'Jun 6, 2026'
+  let recordings: Array<{ id: string; instrument: string; title: string; date: string; duration: string; score: number | null; level: string; status: 'analyzed' | 'processing' | 'uploading' | 'error' }> = []
+  let latestScores: number[] = []
+  let todayDrills: Array<{ label: string; priority: string; done: boolean }> = []
+  let practiceDate = ''
 
   try {
     const supabase = await createClient()
@@ -90,7 +80,7 @@ export default async function DashboardPage() {
             level: getLevelById(report?.estimated_level ?? '')?.label ?? report?.estimated_level ?? '—',
             status: rec.status as 'analyzed' | 'processing' | 'uploading' | 'error',
           }
-        }) as typeof MOCK_RECORDINGS
+        })
 
         latestScores = recordingsResult.data
           .reverse()
@@ -203,6 +193,12 @@ export default async function DashboardPage() {
               {recordings.map((r) => (
                 <RecordingCard key={r.id} {...r} />
               ))}
+              {recordings.length === 0 && (
+                <div className="p-6 rounded-2xl bg-surface-DEFAULT border border-border-DEFAULT text-center">
+                  <p className="text-sm text-zinc-400 mb-1">No recordings yet</p>
+                  <p className="text-xs text-zinc-600">Upload your first recording to get started.</p>
+                </div>
+              )}
               <Link
                 href="/dashboard/upload"
                 className="flex items-center justify-center gap-2 p-4 rounded-2xl border-2 border-dashed border-border-DEFAULT hover:border-violet-500/40 hover:bg-surface-raised transition-all text-sm text-zinc-500 hover:text-zinc-300"
@@ -223,21 +219,29 @@ export default async function DashboardPage() {
                 </Link>
               </div>
               <div className="p-4 rounded-2xl bg-surface-DEFAULT border border-border-DEFAULT space-y-3">
-                {todayDrills.map((item, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className={`w-4 h-4 rounded flex-shrink-0 mt-0.5 flex items-center justify-center border ${
-                      item.done ? 'bg-emerald-500/20 border-emerald-500/40' : item.priority === 'high' ? 'border-rose-500/40' : 'border-border-strong'
-                    }`}>
-                      {item.done && <span className="text-[8px] text-emerald-400 font-bold">✓</span>}
+                {todayDrills.length > 0 ? (
+                  <>
+                    {todayDrills.map((item, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <div className={`w-4 h-4 rounded flex-shrink-0 mt-0.5 flex items-center justify-center border ${
+                          item.done ? 'bg-emerald-500/20 border-emerald-500/40' : item.priority === 'high' ? 'border-rose-500/40' : 'border-border-strong'
+                        }`}>
+                          {item.done && <span className="text-[8px] text-emerald-400 font-bold">✓</span>}
+                        </div>
+                        <p className={`text-xs leading-relaxed ${item.done ? 'line-through text-zinc-600' : 'text-zinc-300'}`}>
+                          {item.label}
+                        </p>
+                      </div>
+                    ))}
+                    <div className="pt-2 border-t border-border-subtle">
+                      <p className="text-[10px] text-zinc-600">From your last recording · {practiceDate}</p>
                     </div>
-                    <p className={`text-xs leading-relaxed ${item.done ? 'line-through text-zinc-600' : 'text-zinc-300'}`}>
-                      {item.label}
-                    </p>
-                  </div>
-                ))}
-                <div className="pt-2 border-t border-border-subtle">
-                  <p className="text-[10px] text-zinc-600">From your last recording · {practiceDate}</p>
-                </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-zinc-500 text-center py-2">
+                    Your practice plan will appear here after your first feedback report.
+                  </p>
+                )}
               </div>
 
               {/* Score trend */}

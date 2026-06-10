@@ -8,8 +8,9 @@ import { StepIndicator } from '@/components/onboarding/step-indicator'
 import { InstrumentGrid } from '@/components/onboarding/instrument-grid'
 import { LevelSelector } from '@/components/onboarding/level-selector'
 import { Button } from '@/components/ui/button'
-import { PERFORMANCE_LEVELS, getLevelById } from '@/lib/constants/levels'
+import { getLevelById } from '@/lib/constants/levels'
 import { getInstrumentById } from '@/lib/constants/instruments'
+import { createClient } from '@/lib/supabase/client'
 import type { Instrument, PerformanceLevel } from '@/lib/types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -73,7 +74,21 @@ export default function OnboardingPage() {
     localStorage.setItem('virtuoso_target_level', level.id)
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          instrument: selectedInstrument,
+          current_level: currentLevel,
+          target_level: targetLevel,
+          onboarding_completed: true,
+        })
+        await supabase.auth.updateUser({ data: { onboarded: true } })
+      }
+    } catch { /* fall through */ }
     localStorage.setItem('virtuoso_onboarded', 'true')
     router.push('/dashboard')
   }

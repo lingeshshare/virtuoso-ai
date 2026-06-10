@@ -202,12 +202,12 @@ function BenchmarkTable({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function ProgressPage() {
-  let sessions: SessionRow[] = DEMO_SESSIONS
-  let categoryTrends: CategoryTrend[] = DEMO_CATEGORY_TRENDS
-  let currentLevelLabel = 'Region'
+  let sessions: SessionRow[] = []
+  let categoryTrends: CategoryTrend[] = []
+  let currentLevelLabel = '—'
   let targetLevel = 'all-state'
-  let instrumentLabel = 'Alto Saxophone'
-  let isDemo = true
+  let instrumentLabel = '—'
+  let isDemo = false
 
   try {
     const supabase = await createClient()
@@ -299,16 +299,39 @@ export default async function ProgressPage() {
     // fall through to demo data
   }
 
-  const latestScore = sessions[sessions.length - 1].score
-  const firstScore = sessions[0].score
+  const hasData = sessions.length > 0
+  const latestScore = hasData ? sessions[sessions.length - 1].score : 0
+  const firstScore = hasData ? sessions[0].score : 0
   const totalDelta = latestScore - firstScore
   const targetLevelDef = getLevelById(targetLevel)
+
+  if (!hasData) {
+    return (
+      <>
+        <Topbar title="Progress" subtitle="Track your improvement over time" />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-4xl mx-auto px-6 py-16 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-violet-500/15 flex items-center justify-center">
+              <TrendingUp className="w-7 h-7 text-violet-400" />
+            </div>
+            <h2 className="text-lg font-bold text-white">No progress data yet</h2>
+            <p className="text-sm text-zinc-400 max-w-xs">
+              Upload a recording, run the analysis, and generate a feedback report. Your progress will track automatically from there.
+            </p>
+            <Link href="/dashboard/upload" className="mt-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors">
+              Upload a recording
+            </Link>
+          </div>
+        </main>
+      </>
+    )
+  }
 
   return (
     <>
       <Topbar
         title="Progress"
-        subtitle={`${sessions.length} sessions · ${instrumentLabel}${isDemo ? ' · Demo' : ''}`}
+        subtitle={`${sessions.length} session${sessions.length === 1 ? '' : 's'} · ${instrumentLabel}`}
       />
 
       <main className="flex-1 overflow-y-auto">
@@ -421,11 +444,6 @@ export default async function ProgressPage() {
             </CardContent>
           </Card>
 
-          {isDemo && (
-            <p className="text-xs text-zinc-600 text-center">
-              Showing demo data. Analyze a recording and generate a feedback report to see your real progress.
-            </p>
-          )}
         </div>
       </main>
     </>

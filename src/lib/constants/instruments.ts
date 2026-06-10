@@ -36,7 +36,6 @@ export const INSTRUMENT_CATEGORIES: InstrumentCategory[] = [
       { id: 'viola', label: 'Viola', emoji: '🎻', family: 'string' },
       { id: 'cello', label: 'Cello', emoji: '🎻', family: 'string' },
       { id: 'double-bass', label: 'Double Bass', emoji: '🎻', family: 'string' },
-      { id: 'harp', label: 'Harp', emoji: '🎻', family: 'string' },
     ],
   },
   {

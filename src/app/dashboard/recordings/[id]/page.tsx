@@ -59,7 +59,7 @@ export default async function RecordingPage({ params }: { params: Promise<{ id: 
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      return <RecordingHub id={id} data={MOCK} isDemo />
+      return <RecordingError message="You must be signed in to view this recording." />
     }
 
     const { data: rec } = await supabase
@@ -74,7 +74,7 @@ export default async function RecordingPage({ params }: { params: Promise<{ id: 
       .single()
 
     if (!rec) {
-      return <RecordingHub id={id} data={MOCK} isDemo />
+      return <RecordingError message="Recording not found." />
     }
 
     const report = Array.isArray(rec.feedback_reports)
@@ -120,8 +120,39 @@ export default async function RecordingPage({ params }: { params: Promise<{ id: 
 
     return <RecordingHub id={id} data={data} />
   } catch {
-    return <RecordingHub id={id} data={MOCK} isDemo />
+    return <RecordingError message="Failed to load recording. Please try again." />
   }
+}
+
+function RecordingError({ message }: { message: string }) {
+  return (
+    <>
+      <Topbar
+        title="Recording"
+        subtitle="Error"
+        actions={
+          <Link href="/dashboard/recordings">
+            <button className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+              All recordings
+            </button>
+          </Link>
+        }
+      />
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-6 py-8">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-sm text-zinc-400">{message}</p>
+              <Link href="/dashboard/recordings" className="inline-block mt-4 text-xs text-violet-400 hover:text-violet-300">
+                ← Back to recordings
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </>
+  )
 }
 
 // ── RecordingHub component ──────────────────────────────────────────────────
