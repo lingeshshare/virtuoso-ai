@@ -7,9 +7,13 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
   const isDashboard = path.startsWith('/dashboard')
   const isAuthPage = path.startsWith('/auth') && !path.startsWith('/auth/callback')
+  const isRoot = path === '/'
 
-  // If Supabase is not configured (no env vars), allow all routes (demo mode)
-  // updateSession returns user=null when env vars are missing
+  // Root: authenticated → dashboard, unauthenticated → login
+  if (isRoot && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    if (user) return NextResponse.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
 
   // Protect dashboard routes — redirect unauthenticated users to login
   if (isDashboard && !user && process.env.NEXT_PUBLIC_SUPABASE_URL) {
