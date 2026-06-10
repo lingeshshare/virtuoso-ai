@@ -25,13 +25,16 @@ export default async function DashboardPage() {
   let latestScores: number[] = []
   let todayDrills: Array<{ label: string; priority: string; done: boolean }> = []
   let practiceDate = ''
+  let totalRecordingCount = 0
+  let avgScore: number | null = null
+  let totalDurationSeconds: number | null = null
 
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
     if (user) {
-      const [profileResult, recordingsResult, practiceResult] = await Promise.all([
+      const [profileResult, recordingsResult, practiceResult, statsResult] = await Promise.all([
         supabase
           .from('profiles')
           .select('instrument, current_level, target_level, onboarding_completed')
@@ -54,6 +57,10 @@ export default async function DashboardPage() {
           .order('created_at', { ascending: false })
           .limit(1)
           .single(),
+        supabase
+          .from('recordings')
+          .select('duration_seconds, feedback_reports(overall_score)', { count: 'exact' })
+          .eq('user_id', user.id),
       ])
 
       if (profileResult.data) {
@@ -89,6 +96,18 @@ export default async function DashboardPage() {
             return Math.round(rpt?.overall_score ?? 0)
           })
           .filter((s) => s > 0)
+      }
+
+      if (statsResult.data && statsResult.data.length > 0) {
+        totalRecordingCount = statsResult.count ?? statsResult.data.length
+        const scores = statsResult.data
+          .map((r) => {
+            const rpt = Array.isArray(r.feedback_reports) ? r.feedback_reports[0] : r.feedback_reports
+            return rpt?.overall_score ?? null
+          })
+          .filter((s): s is number => s != null && s > 0)
+        if (scores.length > 0) avgScore = scores.reduce((a, b) => a + b, 0) / scores.length
+        totalDurationSeconds = statsResult.data.reduce((sum, r) => sum + (r.duration_seconds ?? 0), 0)
       }
 
       if (practiceResult.data?.drills_json) {
@@ -154,7 +173,12 @@ export default async function DashboardPage() {
           {/* Stats */}
           <section>
             <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Overview</h2>
-            <QuickStats />
+            <QuickStats
+              recordingCount={totalRecordingCount}
+              avgScore={avgScore}
+              hoursLogged={totalDurationSeconds}
+              currentLevel={currentLevelLabel !== '—' ? currentLevelLabel : null}
+            />
           </section>
 
           {/* Goal banner */}
