@@ -14,7 +14,7 @@ export function Topbar({ title, subtitle, actions, className }: TopbarProps) {
   return (
     <header
       className={cn(
-        'h-16 flex items-center justify-between px-4 sm:px-6 border-b border-border-DEFAULT bg-base-900/80 backdrop-blur-sm flex-shrink-0',
+        'h-16 flex items-center justify-between px-4 sm:px-6 border-b border-border-DEFAULT bg-base-900 flex-shrink-0',
         className
       )}
     >

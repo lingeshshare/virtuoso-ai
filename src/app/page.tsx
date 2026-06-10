@@ -132,7 +132,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-[#050508] text-white overflow-x-hidden">
       {/* ── Nav ─────────────────────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between border-b border-white/[0.05] bg-[#050508]/80 backdrop-blur-xl">
+      <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between border-b border-white/[0.05] bg-[#050508]">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center shadow-[0_0_15px_rgba(124,58,237,0.4)]">
             <Music className="w-4 h-4 text-white" />
