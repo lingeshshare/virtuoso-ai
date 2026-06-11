@@ -137,49 +137,57 @@ export function UploadZone({ className }: UploadZoneProps) {
 
   const handleSubmit = async () => {
     if (!file) return
-
     setUploadState('uploading')
     setUploadProgress(0)
     setUploadError(null)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      formData.append('title', file.name.replace(/\.[^.]+$/, ''))
+      // Step 1: Get a signed upload URL from our API (tiny JSON — no Vercel body limit issue)
+      const prepResp = await fetch('/api/recordings/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+          title: file.name.replace(/\.[^.]+$/, ''),
+        }),
+      })
+      if (!prepResp.ok) {
+        const data = await prepResp.json().catch(() => ({}))
+        throw new Error(data.error ?? `Prepare failed (${prepResp.status})`)
+      }
+      const { recordingId, uploadUrl, contentType } = await prepResp.json()
+      setUploadProgress(5)
 
-      const recordingId = await new Promise<string>((resolve, reject) => {
+      // Step 2: Upload file directly to Supabase Storage (browser → Supabase, bypasses Vercel)
+      await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
-
         xhr.upload.addEventListener('progress', (ev) => {
           if (ev.lengthComputable) {
-            setUploadProgress(Math.round((ev.loaded / ev.total) * 85))
+            setUploadProgress(5 + Math.round((ev.loaded / ev.total) * 85))
           }
         })
-
         xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const data = JSON.parse(xhr.responseText)
-              resolve(data.recordingId)
-            } catch {
-              reject(new Error('Invalid server response'))
-            }
-          } else {
-            try {
-              const data = JSON.parse(xhr.responseText)
-              reject(new Error(data.error ?? `Upload failed (${xhr.status})`))
-            } catch {
-              reject(new Error(`Upload failed (${xhr.status})`))
-            }
-          }
+          if (xhr.status >= 200 && xhr.status < 300) resolve()
+          else reject(new Error(`Storage upload failed (${xhr.status})`))
         })
-
-        xhr.addEventListener('error', () => reject(new Error('Network error')))
+        xhr.addEventListener('error', () => reject(new Error('Network error during upload')))
         xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')))
-
-        xhr.open('POST', '/api/recordings/upload')
-        xhr.send(formData)
+        xhr.open('PUT', uploadUrl)
+        xhr.setRequestHeader('Content-Type', contentType)
+        xhr.send(file)
       })
+      setUploadProgress(92)
+
+      // Step 3: Finalize — generate download URL and trigger analysis
+      const finalResp = await fetch(`/api/recordings/${recordingId}/finalize`, {
+        method: 'POST',
+      })
+      if (!finalResp.ok) {
+        const data = await finalResp.json().catch(() => ({}))
+        throw new Error(data.error ?? `Finalize failed (${finalResp.status})`)
+      }
 
       setUploadProgress(100)
       setUploadState('processing')
