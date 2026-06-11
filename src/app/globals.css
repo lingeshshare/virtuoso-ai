@@ -50,6 +50,17 @@
     background-color: rgba(124, 58, 237, 0.3);
     color: white;
   }
+
+  /* Override Safari/Chrome autofill background — prevents white bg making white text invisible */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: #ffffff !important;
+    -webkit-box-shadow: 0 0 0px 1000px #0d0d16 inset !important;
+    caret-color: #ffffff;
+    transition: background-color 9999s ease-in-out 0s;
+  }
 }
 
 @layer utilities {
