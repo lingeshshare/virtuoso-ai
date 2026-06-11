@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowLeft, Clock, Flame, Target, Music, Calendar } from 'lucide-react'
+import { ArrowLeft, Clock, Flame, Target, Music, Calendar, ClipboardList } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,32 +10,6 @@ import { createClient } from '@/lib/supabase/server'
 import type { PracticePlan, PracticeDrill } from '@/lib/coaching/types'
 
 export const metadata: Metadata = { title: 'Practice Plan' }
-
-// ── Mock fallback ─────────────────────────────────────────────────────────
-
-const MOCK_DRILLS: PracticeDrill[] = [
-  { id: 'd1', priority: 1, title: 'Articulation — repeated-note single tongue', duration_minutes: 12, bpm: 84, description: 'Isolate repeated-note patterns (8 per bar) at ♩=84 with strict single tongue. Focus on syllable "tah". Record 2-min clip and compare onset timing. Add 4 BPM per week once consistent.', tags: ['articulation', 'single-tongue', 'tempo-building'], type: 'technique', source_observation: 'Timestamp 0:42 — articulation breakdown under tempo', category: 'articulation' },
-  { id: 'd2', priority: 2, title: 'Altissimo long-tones — upper register air support', duration_minutes: 15, bpm: 60, description: 'E5–G5 range. 4-beat crescendo (pp→ff), 4-beat diminuendo. Focus on flat chin, open throat, and forward air stream. Pitch must not sharp on crescendo.', tags: ['tone', 'altissimo', 'air-support', 'long-tones'], type: 'long-tone', source_observation: 'Timestamp 1:15 — tone thinning above E5', category: 'tone' },
-  { id: 'd3', priority: 3, title: 'Scalar passage — tempo lock with accent', duration_minutes: 10, bpm: 88, description: 'Ascending scalar passage from m.24 at ♩=88. Heavy accent on beat 1 only. Count internal subdivisions. Increase by 4 BPM each week when consistent across 3 consecutive runs.', tags: ['rhythm', 'scalar', 'tempo', 'metronome'], type: 'technique', source_observation: 'Timestamp 3:10 — rushing in scalar passage', category: 'timing' },
-  { id: 'd4', priority: 4, title: 'Opening phrase — consolidate the strength', duration_minutes: 8, description: 'Mm. 1–8 only. Recreate the preparation and musical energy. Strong air, clean attack, steady dynamics. Consolidate this strength until unconsciously reproducible.', tags: ['musicality', 'phrase-shaping'], type: 'musical', source_observation: 'Category strength — opening phrase', category: 'musicality' },
-]
-
-const MOCK_PLAN: PracticePlan = {
-  drills: MOCK_DRILLS,
-  weekly_schedule: {
-    monday: ['d1', 'd2', 'd4'],
-    tuesday: ['d2', 'd3'],
-    wednesday: [],
-    thursday: ['d1', 'd2', 'd3'],
-    friday: ['d1', 'd4'],
-    saturday: ['d2'],
-    sunday: [],
-  },
-  total_minutes_per_day: 45,
-  focus_areas: ['Articulation under tempo', 'Upper register air support', 'Timing consistency'],
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────
 
 function DrillTypeIcon({ type }: { type: string }) {
   if (type === 'technique' || type === 'long-tone' || type === 'scale') return <Flame className="w-3.5 h-3.5 text-rose-400" />
@@ -55,7 +29,7 @@ function planToWeekSchedule(plan: PracticePlan): DaySchedule[] {
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
   return days.map((day, i) => {
-    const drillIds = plan.weekly_schedule[day] ?? []
+    const drillIds = plan.weekly_schedule?.[day] ?? []
     const drills = drillIds
       .map((did) => drillMap[did])
       .filter(Boolean)
@@ -69,7 +43,7 @@ function planToWeekSchedule(plan: PracticePlan): DaySchedule[] {
             case 'long-tone': return 'slow-practice' as const
             case 'musical': case 'etude': return 'musical' as const
             case 'rhythm': return 'repetition' as const
-            default: return 'technical' as const  // technique, scale, etc.
+            default: return 'technical' as const
           }
         })(),
         bpm: d.bpm,
@@ -85,45 +59,79 @@ function planToWeekSchedule(plan: PracticePlan): DaySchedule[] {
   })
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────
-
 export default async function PracticePlanPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const isDemo = id.startsWith('demo')
 
-  let plan: PracticePlan = MOCK_PLAN
+  let plan: PracticePlan | null = null
   let recordingTitle = 'Recording'
   let planDate: string | null = null
 
-  if (!isDemo) {
-    try {
-      const supabase = await createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
-      if (user) {
-        const { data } = await supabase
-          .from('practice_plans')
-          .select('drills_json, total_minutes, created_at, recordings(title)')
-          .eq('recording_id', id)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
+    if (user) {
+      const { data } = await supabase
+        .from('practice_plans')
+        .select('drills_json, created_at, recordings(title)')
+        .eq('recording_id', id)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
 
-        if (data?.drills_json) {
-          plan = data.drills_json as unknown as PracticePlan
+      if (data?.drills_json) {
+        const raw = data.drills_json as Record<string, unknown>
+        if (Array.isArray(raw.drills)) {
+          plan = raw as unknown as PracticePlan
           planDate = new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
           const recData = data.recordings as { title?: string } | null
           if (recData?.title) recordingTitle = recData.title
         }
       }
-    } catch {
-      // fallback to mock
     }
+  } catch {
+    // fall through to empty state
   }
 
-  const drills = plan.drills.sort((a, b) => a.priority - b.priority)
-  const totalMinutes = drills.reduce((s, d) => s + d.duration_minutes, 0)
+  if (!plan) {
+    return (
+      <>
+        <Topbar
+          title="Practice Plan"
+          subtitle={recordingTitle}
+          actions={
+            <Link href={`/dashboard/recordings/${id}/feedback`}>
+              <button className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
+                <ArrowLeft className="w-4 h-4" />
+                Feedback
+              </button>
+            </Link>
+          }
+        />
+        <main className="flex-1 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-6 py-16 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center">
+              <ClipboardList className="w-7 h-7 text-violet-400" />
+            </div>
+            <h2 className="text-base font-semibold text-white">No practice plan yet</h2>
+            <p className="text-sm text-zinc-500 max-w-xs">
+              Generate a feedback report first. Your practice plan is built automatically from the coaching analysis.
+            </p>
+            <Link
+              href={`/dashboard/recordings/${id}/feedback`}
+              className="mt-2 px-5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold transition-colors"
+            >
+              Go to Feedback →
+            </Link>
+          </div>
+        </main>
+      </>
+    )
+  }
+
+  const drills: PracticeDrill[] = plan.drills.sort((a, b) => a.priority - b.priority)
+  const totalMinutes = drills.reduce((s, d) => s + (d.duration_minutes ?? 0), 0)
   const highPriority = drills.filter((d) => d.priority === 1).length
   const weekSchedule = planToWeekSchedule(plan)
 
@@ -131,7 +139,7 @@ export default async function PracticePlanPage({ params }: { params: Promise<{ i
     <>
       <Topbar
         title="Practice Plan"
-        subtitle={isDemo ? `Demo · ${drills.length} drills` : `${recordingTitle} · ${drills.length} drills`}
+        subtitle={`${recordingTitle} · ${drills.length} drills`}
         actions={
           <Link href={`/dashboard/recordings/${id}/feedback`}>
             <button className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-white transition-colors">
@@ -145,7 +153,6 @@ export default async function PracticePlanPage({ params }: { params: Promise<{ i
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
 
-          {/* Session summary */}
           <div className="flex items-center gap-4 p-4 rounded-2xl bg-surface-DEFAULT border border-border-DEFAULT flex-wrap">
             <div className="flex items-center gap-2 text-sm">
               <div className="w-8 h-8 rounded-lg bg-violet-500/15 flex items-center justify-center">
@@ -169,7 +176,7 @@ export default async function PracticePlanPage({ params }: { params: Promise<{ i
                 <span className="text-zinc-400">Generated {planDate}</span>
               </div>
             )}
-            {plan.focus_areas.length > 0 && (
+            {Array.isArray(plan.focus_areas) && plan.focus_areas.length > 0 && (
               <div className="ml-auto flex items-center gap-1.5">
                 {plan.focus_areas.slice(0, 2).map((f) => (
                   <span key={f} className="text-[10px] text-zinc-500 bg-surface-overlay px-2 py-0.5 rounded-md border border-border-subtle">
@@ -180,10 +187,7 @@ export default async function PracticePlanPage({ params }: { params: Promise<{ i
             )}
           </div>
 
-          {/* Two-column: drills + schedule */}
           <div className="grid lg:grid-cols-2 gap-6">
-
-            {/* Drill cards */}
             <section className="space-y-4">
               <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Drill List</h2>
               {drills.map((drill, i) => (
@@ -219,7 +223,7 @@ export default async function PracticePlanPage({ params }: { params: Promise<{ i
                       </div>
                     )}
 
-                    {drill.tags.length > 0 && (
+                    {drill.tags?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 ml-[34px]">
                         {drill.tags.map((tag) => (
                           <span key={tag} className="px-2 py-0.5 rounded-md bg-base-800 border border-border-subtle text-[10px] text-zinc-500 font-mono">
@@ -233,7 +237,6 @@ export default async function PracticePlanPage({ params }: { params: Promise<{ i
               ))}
             </section>
 
-            {/* Weekly schedule */}
             <section className="space-y-4">
               <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Weekly Schedule</h2>
               <Card>

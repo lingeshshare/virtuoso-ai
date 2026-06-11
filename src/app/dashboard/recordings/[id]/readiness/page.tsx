@@ -155,7 +155,12 @@ export default async function ReadinessPage({ params }: { params: Promise<{ id: 
   const targetLevelDef = getLevelById(targetLevel ?? 'all-state')
   const effectiveTarget = targetLevel ?? 'all-state'
 
-  const gapResult = computeGapAnalysis(categoryScores, rubricForGap, currentLevel, effectiveTarget)
+  let gapResult: ReturnType<typeof computeGapAnalysis>
+  try {
+    gapResult = computeGapAnalysis(categoryScores, rubricForGap, currentLevel, effectiveTarget)
+  } catch {
+    gapResult = { readinessPct: 0, gaps: [], topPriorities: [], categoriesMet: [] }
+  }
 
   const levelOptions = PERFORMANCE_LEVELS.filter(
     (l) => l.rank > (currentLevelDef?.rank ?? 0)

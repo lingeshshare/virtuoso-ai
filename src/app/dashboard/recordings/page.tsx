@@ -5,16 +5,9 @@ import { Topbar } from '@/components/layout/topbar'
 import { RecordingCard } from '@/components/dashboard/recording-card'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/server'
+import { getLevelById } from '@/lib/constants/levels'
 
 export const metadata: Metadata = { title: 'Recordings' }
-
-const MOCK_RECORDINGS = [
-  { id: 'demo-1', instrument: 'Alto Saxophone', title: 'All-State Audition Excerpt', date: '2026-06-06', duration: '4:32', score: 74, level: 'Region', status: 'analyzed' as const },
-  { id: 'demo-2', instrument: 'Alto Saxophone', title: 'Concerto in E♭ Major, Mvt. I', date: '2026-06-04', duration: '6:18', score: 71, level: 'Region', status: 'analyzed' as const },
-  { id: 'demo-3', instrument: 'Alto Saxophone', title: 'Scale Packet — E Major', date: '2026-06-02', duration: '2:15', score: 82, level: 'Advanced', status: 'analyzed' as const },
-  { id: 'demo-4', instrument: 'Alto Saxophone', title: 'Sight Reading Exercise #4', date: '2026-05-28', duration: '3:40', score: 66, level: 'Region', status: 'analyzed' as const },
-  { id: 'demo-5', instrument: 'Alto Saxophone', title: 'Long-tone Routine', date: '2026-05-25', duration: '8:12', score: 79, level: 'Advanced', status: 'analyzed' as const },
-]
 
 function formatDuration(seconds: number | null | undefined): string {
   if (!seconds) return '—'
@@ -28,40 +21,32 @@ function formatDate(ts: string): string {
 }
 
 export default async function RecordingsPage() {
-  // Try to load real recordings from Supabase
-  let recordings: typeof MOCK_RECORDINGS = []
-  let isDemo = false
+  let recordings: Array<{
+    id: string; instrument: string; title: string; date: string
+    duration: string; score: number | null; level: string | null
+    status: 'analyzed' | 'processing' | 'error' | 'uploading'
+  }> = []
 
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      isDemo = true
-      recordings = MOCK_RECORDINGS
-    } else {
-      const { data, error } = await supabase
+    if (user) {
+      const { data } = await supabase
         .from('recordings')
         .select(`
-          id, title, instrument, duration_seconds, status, created_at, error_message,
+          id, title, instrument, duration_seconds, status, created_at,
           feedback_reports (overall_score, estimated_level)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(50)
 
-      if (error || !data) {
-        isDemo = true
-        recordings = MOCK_RECORDINGS
-      } else if (data.length === 0) {
-        recordings = []
-      } else {
-        // Map DB rows to RecordingCard props
+      if (data && data.length > 0) {
         recordings = data.map((r) => {
           const report = Array.isArray(r.feedback_reports)
             ? r.feedback_reports[0]
             : r.feedback_reports
-
           return {
             id: r.id,
             instrument: r.instrument,
@@ -69,26 +54,21 @@ export default async function RecordingsPage() {
             date: formatDate(r.created_at),
             duration: formatDuration(r.duration_seconds),
             score: report?.overall_score ?? null,
-            level: report?.estimated_level ?? null,
+            level: getLevelById(report?.estimated_level ?? '')?.label ?? report?.estimated_level ?? null,
             status: r.status as 'analyzed' | 'processing' | 'error' | 'uploading',
           }
         })
       }
     }
   } catch {
-    isDemo = true
-    recordings = MOCK_RECORDINGS
+    // fall through to empty state
   }
 
   return (
     <>
       <Topbar
         title="Recordings"
-        subtitle={
-          isDemo
-            ? 'Demo mode — sign in to save recordings'
-            : `${recordings.length} session${recordings.length !== 1 ? 's' : ''}`
-        }
+        subtitle={`${recordings.length} session${recordings.length !== 1 ? 's' : ''}`}
         actions={
           <Link href="/dashboard/upload">
             <Button variant="primary" size="sm">
