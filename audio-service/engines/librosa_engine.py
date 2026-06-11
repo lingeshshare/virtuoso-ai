@@ -2,6 +2,7 @@
 librosa audio engine — Phase 4 primary engine.
 Responsibilities: tempo, dynamics, onset detection, loudness, timing features, spectral.
 """
+import gc
 import importlib.metadata
 import logging
 from pathlib import Path
@@ -34,11 +35,13 @@ class LibrosaEngine(AudioEngine):
         except Exception:
             return "unknown"
 
-    def analyze(self, audio_path: Path, sample_rate: int = 22050) -> StandardizedMetrics:
+    def analyze(self, audio_path: Path, sample_rate: int = 16000) -> StandardizedMetrics:
         import librosa
 
         try:
-            y, sr = librosa.load(str(audio_path), sr=sample_rate, mono=True)
+            # Cap at 10 minutes to prevent OOM on very long recordings
+            MAX_DURATION = 600.0
+            y, sr = librosa.load(str(audio_path), sr=sample_rate, mono=True, duration=MAX_DURATION)
         except Exception as exc:
             logger.error("librosa.load failed: %s", exc)
             return StandardizedMetrics(
@@ -152,7 +155,8 @@ class LibrosaEngine(AudioEngine):
             "tempo_stability_score": round(stability * 100, 1),
         }
 
-        return StandardizedMetrics(
+        # Build result before freeing memory
+        result = StandardizedMetrics(
             engine=self.name,
             engine_version=self.version,
             duration_seconds=round(duration, 2),
@@ -193,3 +197,9 @@ class LibrosaEngine(AudioEngine):
             ),
             scores=scores,
         )
+
+        # Free large arrays immediately after use
+        del y, rms, rms_db, onset_env, centroid, bandwidth, rolloff, zcr
+        gc.collect()
+
+        return result

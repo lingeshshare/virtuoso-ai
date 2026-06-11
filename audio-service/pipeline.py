@@ -1,12 +1,13 @@
 """
 Multi-engine analysis pipeline.
-Runs all available engines in parallel, merges results into one StandardizedMetrics.
+Runs engines sequentially to keep memory usage flat on free-tier instances.
 """
+import gc
 import logging
 import tempfile
+import threading
 import time
 import urllib.request
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from engines.registry import EngineRegistry, DEFAULT_ENGINES
@@ -17,6 +18,9 @@ from models import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Allow only 1 analysis at a time — prevents two concurrent requests from doubling peak memory
+_analysis_semaphore = threading.Semaphore(1)
 
 
 def _download_audio(url: str) -> Path:
@@ -148,35 +152,33 @@ def run_full_pipeline(
     engines_attempted = list(engines_to_run)
     logger.info("Pipeline: recording=%s engines=%s", request.recording_id, engines_to_run)
 
-    try:
-        audio_path = _download_audio(request.audio_url)
+    with _analysis_semaphore:
+        try:
+            audio_path = _download_audio(request.audio_url)
 
-        results: dict[str, StandardizedMetrics] = {}
+            results: dict[str, StandardizedMetrics] = {}
 
-        # Run engines in parallel
-        with ThreadPoolExecutor(max_workers=min(len(engines_to_run), 4)) as executor:
-            futures = {
-                executor.submit(_run_single_engine, name, audio_path): name
-                for name in engines_to_run
-            }
-            for future in as_completed(futures):
-                engine_name, metrics = future.result()
+            # Run engines sequentially to keep peak memory flat
+            for name in engines_to_run:
+                engine_name, metrics = _run_single_engine(name, audio_path)
                 results[engine_name] = metrics
+                gc.collect()  # free engine memory before starting next
 
-        engines_succeeded = [name for name, m in results.items() if not m.error]
-        merged = merge_metrics(results)
+            engines_succeeded = [name for name, m in results.items() if not m.error]
+            merged = merge_metrics(results)
 
-    except Exception as exc:
-        logger.exception("Pipeline failure for recording %s", request.recording_id)
-        merged = _empty_metrics("pipeline", error=str(exc))
-        engines_succeeded = []
+        except Exception as exc:
+            logger.exception("Pipeline failure for recording %s", request.recording_id)
+            merged = _empty_metrics("pipeline", error=str(exc))
+            engines_succeeded = []
 
-    finally:
-        if audio_path and audio_path.exists():
-            try:
-                audio_path.unlink()
-            except OSError:
-                pass
+        finally:
+            if audio_path and audio_path.exists():
+                try:
+                    audio_path.unlink()
+                except OSError:
+                    pass
+            gc.collect()
 
     elapsed = round(time.perf_counter() - t0, 3)
     return AnalyzeResponse(
