@@ -79,25 +79,29 @@ export interface Database {
         Row: {
           id: string
           recording_id: string
-          engine: AudioEngine
+          engine: string
           metrics_json: Json
-          duration: number | null
-          tempo: number | null
-          tempo_stability: number | null
-          dynamics_range: number | null
-          average_loudness: number | null
+          tempo_bpm: number | null
+          avg_loudness_db: number | null
+          onset_count: number | null
+          timing_score: number | null
+          dynamics_score: number | null
+          pitch_accuracy: number | null
+          intonation_score: number | null
           created_at: string
         }
         Insert: {
           id?: string
           recording_id: string
-          engine: AudioEngine
+          engine: string
           metrics_json: Json
-          duration?: number | null
-          tempo?: number | null
-          tempo_stability?: number | null
-          dynamics_range?: number | null
-          average_loudness?: number | null
+          tempo_bpm?: number | null
+          avg_loudness_db?: number | null
+          onset_count?: number | null
+          timing_score?: number | null
+          dynamics_score?: number | null
+          pitch_accuracy?: number | null
+          intonation_score?: number | null
         }
         Update: never
       }
