@@ -26,25 +26,37 @@ export default async function PracticePage() {
     if (user) {
       const { data } = await supabase
         .from('practice_plans')
-        .select('id, created_at, drills_json, recordings(title)')
+        .select('id, created_at, drills_json, recording_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(20)
 
-      if (data) {
+      if (data && data.length > 0) {
+        // Fetch recording titles separately to avoid PostgREST FK join issues
+        const recordingIds = data.map((r) => r.recording_id).filter(Boolean) as string[]
+        const { data: recordings } = await supabase
+          .from('recordings')
+          .select('id, title')
+          .in('id', recordingIds)
+        const titleMap = Object.fromEntries((recordings ?? []).map((r) => [r.id, r.title]))
+
         plans = data.map((row) => {
           const dj = row.drills_json as Record<string, unknown>
           const drills: string[] = Array.isArray(dj?.drills)
             ? (dj.drills as Array<{ title?: string; name?: string }>).map((d) => d.title ?? d.name ?? String(d))
             : []
-          const totalMinutes = typeof dj?.total_minutes === 'number' ? dj.total_minutes : drills.length * 10
+          const totalMinutes =
+            typeof dj?.total_minutes_per_day === 'number'
+              ? dj.total_minutes_per_day
+              : typeof dj?.total_minutes === 'number'
+              ? dj.total_minutes
+              : drills.length * 10
           const priorityCount = Array.isArray(dj?.drills)
-            ? (dj.drills as Array<{ priority?: string }>).filter((d) => d.priority === 'high').length
+            ? (dj.drills as Array<{ priority?: number }>).filter((d) => d.priority === 1).length
             : 0
-          const rec = Array.isArray(row.recordings) ? row.recordings[0] : row.recordings
           return {
             id: row.id,
-            recordingTitle: (rec as { title?: string } | null)?.title ?? 'Recording',
+            recordingTitle: titleMap[row.recording_id ?? ''] ?? 'Recording',
             date: row.created_at.split('T')[0],
             totalMinutes,
             priorityCount,

@@ -166,14 +166,17 @@ export async function POST(req: NextRequest, { params }: Params) {
     )
 
     // Store practice_plan
-    const totalMinutes = plan.total_minutes_per_day
-    await svc.from('practice_plans').insert({
+    const { error: planErr } = await svc.from('practice_plans').insert({
       recording_id: id,
       report_id: storedReport.id,
       user_id: user.id,
       drills_json: plan as unknown as Record<string, unknown>,
-      total_minutes: totalMinutes,
+      total_minutes: plan.total_minutes_per_day ?? 0,
     })
+
+    if (planErr) {
+      console.error('[coach] Failed to store practice_plan:', planErr.message, planErr.details, planErr.code)
+    }
 
     console.log(
       `[coach] recording=${id} persona=${persona} feedback=${inputTokens}+${outputTokens}tok plan=${planIn}+${planOut}tok`

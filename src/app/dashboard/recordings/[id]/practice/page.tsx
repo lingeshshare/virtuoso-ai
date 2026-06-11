@@ -71,22 +71,31 @@ export default async function PracticePlanPage({ params }: { params: Promise<{ i
     const { data: { user } } = await supabase.auth.getUser()
 
     if (user) {
-      const { data } = await supabase
-        .from('practice_plans')
-        .select('drills_json, created_at, recordings(title)')
-        .eq('recording_id', id)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single()
+      // Fetch practice plan and recording title in parallel, no FK join needed
+      const [planResult, recResult] = await Promise.all([
+        supabase
+          .from('practice_plans')
+          .select('drills_json, created_at')
+          .eq('recording_id', id)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('recordings')
+          .select('title')
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ])
 
-      if (data?.drills_json) {
-        const raw = data.drills_json as Record<string, unknown>
+      if (recResult.data?.title) recordingTitle = recResult.data.title
+
+      if (planResult.data?.drills_json) {
+        const raw = planResult.data.drills_json as Record<string, unknown>
         if (Array.isArray(raw.drills)) {
           plan = raw as unknown as PracticePlan
-          planDate = new Date(data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          const recData = data.recordings as { title?: string } | null
-          if (recData?.title) recordingTitle = recData.title
+          planDate = new Date(planResult.data.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         }
       }
     }
