@@ -51,13 +51,21 @@
     color: white;
   }
 
-  /* Override Safari/Chrome autofill background — prevents white bg making white text invisible */
+  /* Disable Safari native input styling that overrides background-color */
+  input,
+  textarea,
+  select {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Override Safari/Chrome autofill white background */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus,
   input:-webkit-autofill:active {
     -webkit-text-fill-color: #ffffff !important;
-    -webkit-box-shadow: 0 0 0px 1000px #0d0d16 inset !important;
+    -webkit-box-shadow: 0 0 0px 1000px #111120 inset !important;
     caret-color: #ffffff;
     transition: background-color 9999s ease-in-out 0s;
   }
