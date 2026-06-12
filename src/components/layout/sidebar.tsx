@@ -8,7 +8,7 @@ import {
   FileAudio,
   TrendingUp,
   ClipboardList,
-  User,
+  Settings,
   Music,
   ChevronRight,
 } from 'lucide-react'
@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/recordings', icon: FileAudio, label: 'Recordings' },
   { href: '/dashboard/practice', icon: ClipboardList, label: 'Practice Plans' },
   { href: '/dashboard/progress', icon: TrendingUp, label: 'Progress' },
-  { href: '/dashboard/profile', icon: User, label: 'Profile' },
+  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ]
 
 export function Sidebar() {

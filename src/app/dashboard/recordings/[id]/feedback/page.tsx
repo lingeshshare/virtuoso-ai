@@ -1,9 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Loader2, RefreshCw, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Loader2, RefreshCw, AlertCircle, TrendingUp } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
 import { WeightedScorecard } from '@/components/feedback/weighted-scorecard'
 import { PersonaSelector } from '@/components/feedback/persona-selector'
@@ -92,6 +92,7 @@ function TimestampItem({ item }: { item: TimestampFeedbackItem }) {
 
 export default function FeedbackPage() {
   const params = useParams()
+  const router = useRouter()
   const id = params.id as string
   const isDemo = id.startsWith('demo')
 
@@ -100,6 +101,18 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(!isDemo)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [userCurrentLevel, setUserCurrentLevel] = useState<string | null>(null)
+  const [levelUpdating, setLevelUpdating] = useState(false)
+  const [levelUpdated, setLevelUpdated] = useState(false)
+
+  useEffect(() => {
+    if (!isDemo) {
+      fetch('/api/user/profile')
+        .then((r) => r.json())
+        .then(({ profile }) => setUserCurrentLevel(profile?.current_level ?? null))
+        .catch(() => {})
+    }
+  }, [isDemo])
 
   useEffect(() => {
     if (isDemo) return
@@ -145,6 +158,31 @@ export default function FeedbackPage() {
     }
   }
 
+  async function updateLevelToEstimated() {
+    if (!report?.estimated_level) return
+    setLevelUpdating(true)
+    try {
+      await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_level: report.estimated_level }),
+      })
+      setUserCurrentLevel(report.estimated_level)
+      setLevelUpdated(true)
+    } catch {
+      // non-critical — don't surface
+    } finally {
+      setLevelUpdating(false)
+    }
+  }
+
+  const showLevelSuggestion =
+    !isDemo &&
+    !levelUpdated &&
+    report?.estimated_level &&
+    userCurrentLevel &&
+    report.estimated_level !== userCurrentLevel
+
   const rubric = getRubric('alto-saxophone')
   const personaDef = getPersonaById(persona)
   const adjustedRubric = personaDef ? applyPersonaWeights(rubric, personaDef) : rubric
@@ -176,6 +214,45 @@ export default function FeedbackPage() {
         <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
 
           <PersonaSelector value={persona} onChange={setPersona} />
+
+          {showLevelSuggestion && (
+            <div className="flex items-center justify-between gap-4 p-4 rounded-xl bg-violet-500/10 border border-violet-500/25">
+              <div className="flex items-center gap-3 min-w-0">
+                <TrendingUp className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                <p className="text-sm text-zinc-200">
+                  This recording suggests you&apos;re performing at{' '}
+                  <span className="font-semibold text-white capitalize">
+                    {report!.estimated_level.replace(/-/g, ' ')}
+                  </span>{' '}
+                  level — different from your current profile setting of{' '}
+                  <span className="capitalize">{userCurrentLevel!.replace(/-/g, ' ')}</span>.
+                  Want to update your level?
+                </p>
+              </div>
+              <button
+                onClick={updateLevelToEstimated}
+                disabled={levelUpdating}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white text-xs font-semibold transition-colors flex-shrink-0"
+              >
+                {levelUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                Update Level
+              </button>
+            </div>
+          )}
+
+          {levelUpdated && (
+            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+              <TrendingUp className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <p className="text-sm text-emerald-300">
+                Your level has been updated to{' '}
+                <span className="font-semibold capitalize">{report?.estimated_level?.replace(/-/g, ' ')}</span>.{' '}
+                <Link href="/dashboard/settings" className="underline hover:text-emerald-200 transition-colors">
+                  Manage in Settings
+                </Link>
+              </p>
+            </div>
+          )}
+
 
           {loading && (
             <div className="flex items-center gap-3 text-zinc-400 py-8 justify-center">

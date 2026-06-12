@@ -6,9 +6,10 @@ const ACCEPTED_MIME_TYPES = new Set([
   'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
   'audio/mp4', 'audio/m4a', 'audio/x-m4a', 'audio/ogg', 'audio/flac',
   'audio/x-flac', 'audio/aiff', 'audio/x-aiff', 'audio/webm',
+  'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/3gpp', 'video/mov',
   'application/octet-stream',
 ])
-const ACCEPTED_EXTENSIONS = /\.(mp3|wav|m4a|ogg|flac|aiff|webm)$/i
+const ACCEPTED_EXTENSIONS = /\.(mp3|wav|m4a|ogg|flac|aiff|webm|mp4|mov|m4v|3gp)$/i
 const MAX_SIZE_BYTES = 200 * 1024 * 1024
 
 export async function POST(req: NextRequest) {

@@ -6,7 +6,7 @@ import { Upload, Mic, FileAudio, X, Loader2, AlertCircle, CheckCircle2, Square }
 import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/button'
 
-const ACCEPTED_FORMATS = ['.mp3', '.wav', '.m4a', '.ogg', '.flac', '.aiff', '.webm']
+const ACCEPTED_FORMATS = ['.mp3', '.wav', '.m4a', '.ogg', '.flac', '.aiff', '.webm', '.mp4', '.mov', '.m4v', '.3gp']
 const MAX_FILE_SIZE_MB = 200
 
 type UploadState = 'idle' | 'uploading' | 'processing' | 'done' | 'error'
@@ -246,7 +246,7 @@ export function UploadZone({ className }: UploadZoneProps) {
               Drop your audio file here, or <span className="text-violet-400">browse</span>
             </p>
             <p className="text-xs text-zinc-500">
-              {ACCEPTED_FORMATS.join(' · ')} · Up to {MAX_FILE_SIZE_MB}MB
+              Audio or video · MP3, WAV, M4A, MP4, MOV and more · Up to {MAX_FILE_SIZE_MB}MB
             </p>
           </div>
         </div>

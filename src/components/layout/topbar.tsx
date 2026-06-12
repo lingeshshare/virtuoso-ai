@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { Bell } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
@@ -36,9 +37,12 @@ export function Topbar({ title, subtitle, actions, className }: TopbarProps) {
           <Bell className="w-4 h-4" />
         </button>
 
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-xs font-semibold text-white shadow-glow-violet select-none flex-shrink-0">
+        <Link
+          href="/dashboard/settings"
+          className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-700 flex items-center justify-center text-xs font-semibold text-white shadow-glow-violet select-none flex-shrink-0 hover:opacity-80 transition-opacity"
+        >
           V
-        </div>
+        </Link>
       </div>
     </header>
   )
