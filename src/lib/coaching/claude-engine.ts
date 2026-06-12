@@ -9,7 +9,8 @@ import { buildFeedbackPrompt, FEEDBACK_TOOL } from './prompts/feedback-prompt'
 import { buildPracticePrompt, PRACTICE_PLAN_TOOL } from './prompts/practice-prompt'
 import type { CoachingInput, CoachingReport, PracticePlan } from './types'
 
-const MODEL = 'claude-sonnet-4-6'
+const FEEDBACK_MODEL = 'claude-sonnet-4-6'
+const PLAN_MODEL = 'claude-haiku-4-5-20251001'
 
 function getClient(): Anthropic {
   const key = process.env.ANTHROPIC_API_KEY
@@ -39,7 +40,7 @@ export async function generateFeedback(input: CoachingInput): Promise<FeedbackRe
   const userPrompt = buildFeedbackPrompt(input)
 
   const response = await client.messages.create({
-    model: MODEL,
+    model: FEEDBACK_MODEL,
     max_tokens: 4096,
     system: systemPrompt,
     tools: [FEEDBACK_TOOL as Anthropic.Tool],
@@ -77,7 +78,7 @@ export async function generatePracticePlan(
   const userPrompt = buildPracticePrompt(report, instrument, level)
 
   const response = await client.messages.create({
-    model: MODEL,
+    model: PLAN_MODEL,
     max_tokens: 2048,
     system: systemPrompt,
     tools: [PRACTICE_PLAN_TOOL as Anthropic.Tool],

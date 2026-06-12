@@ -150,7 +150,7 @@ export default function FeedbackPage() {
   const adjustedRubric = personaDef ? applyPersonaWeights(rubric, personaDef) : rubric
 
   const rubricResults = report
-    ? report.category_scores.map((c) => ({
+    ? (report.category_scores ?? []).map((c) => ({
         id: c.id,
         score: c.score,
         observations: c.observation ? [c.observation] : [],
@@ -267,23 +267,23 @@ export default function FeedbackPage() {
           )}
 
           {/* Timestamp feedback */}
-          {report && report.timestamp_items.length > 0 && (
+          {report && (report.timestamp_items?.length ?? 0) > 0 && (
             <div className="space-y-4">
               <h2 className="text-sm font-semibold text-white">
                 Timestamped Observations
                 <span className="ml-2 text-zinc-500 font-normal">({report.timestamp_items.length})</span>
               </h2>
-              {[...report.timestamp_items]
+              {[...(report.timestamp_items ?? [])]
                 .sort((a, b) => a.priority - b.priority)
                 .map((item, i) => <TimestampItem key={i} item={item} />)}
             </div>
           )}
 
           {/* Category breakdown */}
-          {report && (
+          {report && (report.category_scores?.length ?? 0) > 0 && (
             <div className="space-y-4">
               <h2 className="text-sm font-semibold text-white">Category Breakdown</h2>
-              {[...report.category_scores]
+              {[...(report.category_scores ?? [])]
                 .sort((a, b) => a.score - b.score)
                 .map((cat) => (
                   <Card key={cat.id}>

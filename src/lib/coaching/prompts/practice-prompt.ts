@@ -4,14 +4,14 @@
 import type { CoachingReport } from '../types'
 
 export function buildPracticePrompt(report: CoachingReport, instrument: string, level: string): string {
-  const topIssues = report.category_scores
+  const topIssues = (report.category_scores ?? [])
     .filter((c) => c.score < 80)
     .sort((a, b) => a.score - b.score)
     .slice(0, 4)
     .map((c) => `  - ${c.name} (score: ${c.score}): ${c.fix}`)
     .join('\n')
 
-  const timestampSummary = report.timestamp_items
+  const timestampSummary = (report.timestamp_items ?? [])
     .slice(0, 4)
     .map((t) => `  - ${t.display_time}: ${t.observation} — Drill: ${t.drill}`)
     .join('\n')
