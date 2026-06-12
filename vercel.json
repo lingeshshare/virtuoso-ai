@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "src/app/api/recordings/[id]/analyze/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/recordings/[id]/coach/route.ts": {
+      "maxDuration": 120
+    }
+  }
+}

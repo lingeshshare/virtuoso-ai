@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, RefreshCw, AlertCircle, TrendingUp } from 'lucide-react'
 import { Topbar } from '@/components/layout/topbar'
@@ -92,7 +92,6 @@ function TimestampItem({ item }: { item: TimestampFeedbackItem }) {
 
 export default function FeedbackPage() {
   const params = useParams()
-  const router = useRouter()
   const id = params.id as string
   const isDemo = id.startsWith('demo')
 
@@ -104,15 +103,19 @@ export default function FeedbackPage() {
   const [userCurrentLevel, setUserCurrentLevel] = useState<string | null>(null)
   const [levelUpdating, setLevelUpdating] = useState(false)
   const [levelUpdated, setLevelUpdated] = useState(false)
+  const [recordingInstrument, setRecordingInstrument] = useState<string>('alto-saxophone')
 
   useEffect(() => {
-    if (!isDemo) {
-      fetch('/api/user/profile')
-        .then((r) => r.json())
-        .then(({ profile }) => setUserCurrentLevel(profile?.current_level ?? null))
-        .catch(() => {})
-    }
-  }, [isDemo])
+    if (isDemo) return
+    Promise.all([
+      fetch('/api/user/profile').then((r) => r.json()).catch(() => ({})),
+      fetch(`/api/recordings/${id}`).then((r) => r.json()).catch(() => ({})),
+    ]).then(([{ profile }, { recording }]) => {
+      if (profile?.current_level) setUserCurrentLevel(profile.current_level)
+      if (recording?.instrument) setRecordingInstrument(recording.instrument)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDemo, id])
 
   useEffect(() => {
     if (isDemo) return
@@ -183,7 +186,7 @@ export default function FeedbackPage() {
     userCurrentLevel &&
     report.estimated_level !== userCurrentLevel
 
-  const rubric = getRubric('alto-saxophone')
+  const rubric = getRubric(recordingInstrument)
   const personaDef = getPersonaById(persona)
   const adjustedRubric = personaDef ? applyPersonaWeights(rubric, personaDef) : rubric
 
@@ -348,7 +351,7 @@ export default function FeedbackPage() {
             <div className="space-y-4">
               <h2 className="text-sm font-semibold text-white">
                 Timestamped Observations
-                <span className="ml-2 text-zinc-500 font-normal">({report.timestamp_items.length})</span>
+                <span className="ml-2 text-zinc-500 font-normal">({report.timestamp_items?.length ?? 0})</span>
               </h2>
               {[...(report.timestamp_items ?? [])]
                 .sort((a, b) => a.priority - b.priority)

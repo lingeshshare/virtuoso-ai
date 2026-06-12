@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
+const AUDIO_SERVICE_URL = process.env.AUDIO_ANALYSIS_SERVICE_URL ?? ''
+
+// Fire-and-forget warm-up ping to reduce Render cold-start delay
+function pingAudioService() {
+  if (!AUDIO_SERVICE_URL) return
+  fetch(`${AUDIO_SERVICE_URL}/health`, { signal: AbortSignal.timeout(8000) }).catch(() => {})
+}
+
 const ACCEPTED_MIME_TYPES = new Set([
   'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
   'audio/mp4', 'audio/m4a', 'audio/x-m4a', 'audio/ogg', 'audio/flac',
@@ -17,6 +25,10 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Wake the audio service now — it takes 30-60s on cold start.
+    // Firing here during upload gives it a head start before finalize triggers analysis.
+    pingAudioService()
 
     const { filename, fileSize, mimeType, title } = await req.json()
 
